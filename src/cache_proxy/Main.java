@@ -17,12 +17,14 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Main {
     private static final Logger logger = Logger.getLogger(Main.class.getName());
     private static final int LISTEN_PORT = 8080;
+    private static final int MAX_THREADS = 8;
 
     public static void main(String[] args) {
         try {
@@ -34,7 +36,7 @@ public class Main {
                 server = HttpServer.create(new InetSocketAddress(LISTEN_PORT), 0);
             }
             server.createContext("/", new ProxyResourceHandler());
-            server.setExecutor(null);
+            server.setExecutor(Executors.newFixedThreadPool(MAX_THREADS));
             server.start();
             logger.log(Level.INFO, "Listening on port " + LISTEN_PORT);
         } catch (IOException e) {
