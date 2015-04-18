@@ -5,10 +5,8 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import database.DatabaseHelper;
 
-import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -39,38 +37,39 @@ public class Main {
                 @Override
                 public void handle(HttpExchange httpExchange) throws IOException {
                     URL url = new URL(httpExchange.getRequestURI().toString().substring(1));
-                    File responseFile = null;
-                    if (DatabaseHelper.contains(url.toString())) {
-                        logger.log(Level.INFO, "File found in cache!");
-                        String filename = DatabaseHelper.getFilename(url.toString());
-                        responseFile = new File(CACHE_DIR + filename);
-                    } else {
-                        logger.log(Level.INFO, "File NOT found in cache. Fetching...");
-                        File tmpFile = new File(TEMP_DIR + Long.toString(rnd.nextLong()));
-                        try (ReadableByteChannel rbc = Channels.newChannel(url.openStream());
-                            FileOutputStream fos = new FileOutputStream(tmpFile)) {
-                            // Reads remote file into tmpFile
-                            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+                    // Filter only openweathermap.org and *.nasa.gov petitions
+                    if (url.toString().contains("nasa") || url.toString().contains("openweathermap")) {
+                        File responseFile = null;
+                        if (DatabaseHelper.contains(url.toString())) {
+                            logger.log(Level.INFO, "File " + url.toString() + " FOUND in cache!");
+                            String filename = DatabaseHelper.getFilename(url.toString());
+                            responseFile = new File(CACHE_DIR + filename);
+                        } else {
+                            logger.log(Level.INFO, "File " + url.toString() + " NOT found in cache. Fetching...");
+                            File tmpFile = new File(TEMP_DIR + Long.toString(rnd.nextLong()));
+                            try (ReadableByteChannel rbc = Channels.newChannel(url.openStream());
+                                 FileOutputStream fos = new FileOutputStream(tmpFile)) {
+                                // Reads remote file into tmpFile
+                                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
 
-                            // Stores tmpFile in CACHE_DIR with SHA-256 hash as filename
-                            String hash = getFileHash("SHA-256", tmpFile);
-                            responseFile = new File(CACHE_DIR + hash);
-                            Files.move(tmpFile.toPath(), responseFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                            // Stores the pair (url, hash) in the database
-                            DatabaseHelper.storeFile(url.toString(), hash);
-                        } catch (NoSuchAlgorithmException e) {
-                            logger.log(Level.SEVERE, e.toString(), e);
+                                // Stores tmpFile in CACHE_DIR with SHA-256 hash as filename
+                                String hash = getFileHash("SHA-256", tmpFile);
+                                responseFile = new File(CACHE_DIR + hash);
+                                Files.move(tmpFile.toPath(), responseFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                                // Stores the pair (url, hash) in the database
+                                DatabaseHelper.storeFile(url.toString(), hash);
+                            } catch (NoSuchAlgorithmException e) {
+                                logger.log(Level.SEVERE, e.toString(), e);
+                            }
                         }
-                    }
 
-                    // Sends the file back to the client
-                    httpExchange.sendResponseHeaders(200, responseFile.length());
-                    try (WritableByteChannel wbc = Channels.newChannel(httpExchange.getResponseBody());
-                         FileInputStream fis = new FileInputStream(responseFile)) {
-                        fis.getChannel().transferTo(0, Long.MAX_VALUE, wbc);
-                        logger.log(Level.INFO, "File " + responseFile.toString() + " sent succesfully");
-                    } catch (Exception e) {
-                        logger.log(Level.SEVERE, e.toString(), e);
+                        // Sends the file back to the client
+                        httpExchange.sendResponseHeaders(200, responseFile.length());
+                        try (WritableByteChannel wbc = Channels.newChannel(httpExchange.getResponseBody());
+                             FileInputStream fis = new FileInputStream(responseFile)) {
+                            fis.getChannel().transferTo(0, Long.MAX_VALUE, wbc);
+                            logger.log(Level.INFO, "File " + responseFile.toString() + " sent succesfully");
+                        }
                     }
                 }
 
