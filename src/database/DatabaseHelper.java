@@ -9,7 +9,7 @@ import org.lightcouch.CouchDbClient;
  */
 public class DatabaseHelper {
     private static CouchDbClient db = new CouchDbClient("couchdb.properties");
-    private static final long CACHE_EXPIRAL_TIME = 172800000;    // 1 day
+    private static final long CACHE_EXPIRAL_TIME = 172800000*7;    // 1 week
 
     public static void storeFile(String url, String f) {
         JsonObject document = new JsonObject();

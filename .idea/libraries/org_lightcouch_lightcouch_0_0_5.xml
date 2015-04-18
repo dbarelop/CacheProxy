@@ -12,6 +12,8 @@
     <JAVADOC>
       <root url="jar://$PROJECT_DIR$/lib/lightcouch-0.0.5-javadoc.jar!/" />
     </JAVADOC>
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ideaLibSources/lightcouch-0.0.5-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
