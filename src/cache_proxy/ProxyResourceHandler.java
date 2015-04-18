@@ -9,8 +9,6 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
@@ -39,8 +37,8 @@ public class ProxyResourceHandler implements HttpHandler {
             File responseFile = null;
             if (DatabaseHelper.contains(url.toString())) {
                 logger.log(Level.INFO, "File " + url.toString() + " FOUND in cache!");
-                String filename = DatabaseHelper.getFilename(url.toString());
-                responseFile = new File(CACHE_DIR + filename);
+                Resource r = DatabaseHelper.getResource(url.toString());
+                responseFile = new File(CACHE_DIR + r.getFilename());
             } else {
                 logger.log(Level.INFO, "File " + url.toString() + " NOT found in cache. Fetching...");
                 File tmpFile = new File(TEMP_DIR + Long.toString(rnd.nextLong()));
@@ -49,14 +47,9 @@ public class ProxyResourceHandler implements HttpHandler {
                     // Reads remote file into tmpFile
                     fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
 
-                    // Stores tmpFile in CACHE_DIR with SHA-256 hash as filename
-                    String hash = getFileHash("SHA-256", tmpFile);
-                    responseFile = new File(CACHE_DIR + hash);
-                    Files.move(tmpFile.toPath(), responseFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    // Stores the pair (url, hash) in the database
-                    DatabaseHelper.storeFile(url.toString(), hash);
-                } catch (NoSuchAlgorithmException e) {
-                    logger.log(Level.SEVERE, e.toString(), e);
+                    // Stores the fetched resource
+                    Resource storedResource = ResourceManager.storeResource(url, tmpFile);
+                    responseFile = new File(ResourceManager.CACHE_DIR + storedResource.getFilename());
                 }
             }
 
@@ -65,7 +58,7 @@ public class ProxyResourceHandler implements HttpHandler {
             try (WritableByteChannel wbc = Channels.newChannel(httpExchange.getResponseBody());
                  FileInputStream fis = new FileInputStream(responseFile)) {
                 fis.getChannel().transferTo(0, Long.MAX_VALUE, wbc);
-                logger.log(Level.INFO, "File " + responseFile.toString() + " sent succesfully");
+                logger.log(Level.FINE, "File " + responseFile.toString() + " sent succesfully");
             }
         } else {
             httpExchange.sendResponseHeaders(403, -1);

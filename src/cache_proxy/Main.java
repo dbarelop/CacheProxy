@@ -1,23 +1,12 @@
 package cache_proxy;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import database.DatabaseHelper;
-import org.apache.http.protocol.HTTP;
 
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,6 +14,7 @@ public class Main {
     private static final Logger logger = Logger.getLogger(Main.class.getName());
     private static final int LISTEN_PORT = 8080;
     private static final int MAX_THREADS = 8;
+    private static final long UPDATER_FREQ = 60*60*1000;    // 1 hour
 
     public static void main(String[] args) {
         try {
@@ -39,6 +29,9 @@ public class Main {
             server.setExecutor(Executors.newFixedThreadPool(MAX_THREADS));
             server.start();
             logger.log(Level.INFO, "Listening on port " + LISTEN_PORT);
+            ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+            scheduledExecutor.scheduleAtFixedRate(new ResourceUpdateManager(), 0, UPDATER_FREQ, TimeUnit.MILLISECONDS);
+            logger.log(Level.INFO, "Updater scheduled to run every " + UPDATER_FREQ/60/1000 + " minutes");
         } catch (IOException e) {
             logger.log(Level.SEVERE, e.toString(), e);
         }

@@ -1,27 +1,32 @@
 package database;
 
+import cache_proxy.Resource;
 import com.google.gson.JsonObject;
 import org.apache.commons.codec.binary.Hex;
 import org.lightcouch.CouchDbClient;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by dbarelop on 16/04/15.
  */
 public class DatabaseHelper {
     private static CouchDbClient db = new CouchDbClient("couchdb.properties");
-    private static final long CACHE_EXPIRAL_TIME = 172800000*7;    // 1 week
+    private static final long CACHE_EXPIRAL_TIME = 7*24*60*60*1000;    // 1 week
 
-    public static void storeFile(String url, String f) {
-        JsonObject document = new JsonObject();
-        document.addProperty("_id", Hex.encodeHexString(url.getBytes()));
-        document.addProperty("filename", f);
-        document.addProperty("timestamp", System.currentTimeMillis());
-        db.save(document);
+    public static void storeResource(Resource r) {
+        db.save(r.toJson());
     }
 
-    public static String getFilename(String url) {
+    public static void updateResource(Resource r) {
+        JsonObject obj = r.toJson();
+        db.update(r.toJson());
+    }
+
+    public static Resource getResource(String url) {
         JsonObject obj = db.find(JsonObject.class, Hex.encodeHexString(url.getBytes()));
-        return obj.get("filename").getAsString();
+        return new Resource(obj);
     }
 
     public static boolean contains(String url) {
@@ -37,5 +42,14 @@ public class DatabaseHelper {
         } else {
             return false;
         }
+    }
+
+    public static List<Resource> getResources() {
+        List<Resource> result = new ArrayList<>();
+        for (JsonObject obj : db.view("_all_docs").includeDocs(true).query(JsonObject.class)) {
+            Resource r = new Resource(obj);
+            result.add(r);
+        }
+        return result;
     }
 }
